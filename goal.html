@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Goal tracker</title>
+<style>
+  :root{--fg:#37352f;--muted:#787774;--line:#ebebea;--track:#f1f1ef}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fff;color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";-webkit-font-smoothing:antialiased}
+  .w{max-width:640px;margin:0 auto;padding:18px 22px}
+  .g+.g{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+  .h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .ti{font-size:15px;font-weight:600}
+  .pc{font-size:26px;font-weight:600;letter-spacing:-.5px}
+  .nums{font-size:13px;color:var(--muted);margin-top:2px}
+  .nums b{color:var(--fg);font-weight:600}
+  .bar{height:8px;background:var(--track);border-radius:99px;overflow:hidden;margin:10px 0 8px}
+  .bar i{display:block;height:100%;border-radius:99px;min-width:2px}
+  .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .help{font-size:13px;color:var(--muted);line-height:1.55;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+  .help code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:#f7f7f5;padding:1px 4px;border-radius:4px;color:var(--fg);word-break:break-all}
+  .tag{display:inline-block;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;font-weight:400;vertical-align:2px}
+  .err{font-size:13px;color:#9f6b53}
+  @media (max-width:420px){.w{padding:14px}.pc{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="w" id="app"></div>
+<script>
+(function(){
+  var COLORS={sage:"#6f9a7d",blue:"#5b8bb5",slate:"#6b7a8f",clay:"#c08a6b",plum:"#9a7aa0",gold:"#c4a35a",rose:"#c47f8a"};
+  var q=new URLSearchParams(location.search), app=document.getElementById("app");
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+  function num(v){if(v==null||v==="")return null;var n=Number(String(v).replace(/[, $]/g,""));return isFinite(n)?n:NaN;}
+  function fmt(n,prefix){var a=Math.abs(n),s=a.toLocaleString("en-US",{maximumFractionDigits:2});
+    return (n<0?"-":"")+(prefix||"")+s;}
+  function todayCT(){var p=new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"}).split("-");return Date.UTC(+p[0],+p[1]-1,+p[2]);}
+  function parseDue(s){var m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s||"");if(!m)return null;
+    var t=Date.UTC(+m[1],+m[2]-1,+m[3]);var d=new Date(t);return d.getUTCMonth()===+m[2]-1?t:null;}
+  // goal 1 uses plain names (title, goal...) or suffix 1; goals 2..6 use suffixes 2..6 (title2, goal2...)
+  function get(k,i){return i===1?(q.get(k)!=null?q.get(k):q.get(k+"1")):q.get(k+i);}
+  var goals=[];
+  for(var i=1;i<=6;i++){
+    var g={title:get("title",i),goal:get("goal",i),current:get("current",i),unit:get("unit",i),due:get("due",i),
+      prefix:get("prefix",i),color:get("color",i)||q.get("color")};
+    if(g.goal!=null||g.current!=null||g.title!=null)goals.push(g);
+  }
+  function card(g,example){
+    var goal=num(g.goal),cur=num(g.current==null?"0":g.current),col=COLORS[(g.color||"").toLowerCase()]||COLORS.sage;
+    var title=esc(g.title||"Goal")+(example?'<span class="tag">example</span>':"");
+    if(goal==null||isNaN(goal)||goal<=0||isNaN(cur))
+      return '<div class="g"><div class="ti">'+title+'</div><div class="err">Add a positive <code>goal</code> number (and a <code>current</code> number) to the link.</div></div>';
+    var prefix=g.prefix?esc(g.prefix):"", unit=g.unit?" "+esc(g.unit):"";
+    var pct=cur/goal*100, w=Math.max(0,Math.min(100,pct)), left=goal-cur;
+    var leftTxt=left>0?'<b>'+fmt(left,prefix)+'</b>'+unit+' to go':'Goal reached 🎉'+(left<0?' ('+fmt(-left,prefix)+unit+' over)':'');
+    var dueTxt="";
+    var due=parseDue(g.due);
+    if(g.due&&due==null)dueTxt='<span class="err">Due date must look like 2026-12-31</span>';
+    else if(due!=null){
+      var days=Math.round((due-todayCT())/864e5), dl=new Date(due).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric",timeZone:"UTC"});
+      dueTxt=days>1?'<b>'+days+'</b> days left · due '+dl:days===1?'<b>1</b> day left · due '+dl:days===0?'Due today':'Past due · '+dl;
+      if(days>0&&left>0){var per=left/days;dueTxt+=per>=1?' · ~'+fmt(Math.ceil(per*10)/10,prefix)+unit+'/day':' · ~'+fmt(Math.ceil(per*7*10)/10,prefix)+unit+'/week';}
+    }
+    return '<div class="g"><div class="h"><div><div class="ti">'+title+'</div><div class="nums"><b>'+fmt(cur,prefix)+'</b> of '+fmt(goal,prefix)+unit+'</div></div>'+
+      '<div class="pc" style="color:'+col+'">'+(Math.floor(pct*10)/10).toString().replace(/\.0$/,"")+'%</div></div>'+
+      '<div class="bar"><i style="width:'+w+'%;background:'+col+'"></i></div>'+
+      '<div class="meta"><span>'+leftTxt+'</span><span>'+dueTxt+'</span></div></div>';
+  }
+  if(goals.length){app.innerHTML=goals.map(function(g){return card(g,false);}).join("");}
+  else{
+    app.innerHTML=card({title:"Example goal",goal:"10",current:"4",unit:"items"},true)+
+      '<div class="help">This is a sample, not your data. To track your own goal, add settings to the end of this page\'s link, for example:<br>'+
+      '<code>?title=2026%20Closings&amp;goal=40&amp;current=12&amp;unit=closings&amp;due=2026-12-31</code><br>'+
+      'Options: <code>title</code>, <code>goal</code>, <code>current</code>, <code>unit</code>, <code>due</code> (YYYY-MM-DD), <code>prefix=%24</code> for $, '+
+      '<code>color</code> = sage, blue, slate, clay, plum, gold, rose. Add a second goal with <code>title2</code>, <code>goal2</code>, <code>current2</code>…</div>';
+  }
+})();
+</script>
+</body>
+</html>

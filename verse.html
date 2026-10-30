@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Verse of the Day (CSB)</title>
+<style>
+  :root{--fg:#37352f;--muted:#787774;--line:#ebebea}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fff;color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .w{max-width:640px;margin:0 auto;padding:20px 24px}
+  .k{font-size:12px;color:var(--muted);letter-spacing:.02em;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .t{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-size:20px;line-height:1.5;margin:12px 0 10px}
+  .r{font-size:14px;font-weight:600}
+  .r a{color:inherit;text-decoration:none}
+  .r a:hover{text-decoration:underline}
+  .r span{font-weight:400;color:var(--muted)}
+  .f{margin-top:14px;padding-top:10px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.45;color:var(--muted)}
+  .f a{color:var(--muted)}
+  .msg{font-size:14px;color:var(--muted);padding:20px 0}
+  .msg a{color:var(--fg)}
+  @media (max-width:420px){.w{padding:14px}.t{font-size:17px}}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="k"><span>Verse of the Day</span><span id="date"></span></div>
+  <div id="v"><div class="msg">Loading today's verse…</div></div>
+  <div class="f">
+    Scripture quotations marked CSB have been taken from the Christian Standard Bible®, Copyright © 2017 by Holman Bible Publishers. Used by permission. Christian Standard Bible® and CSB® are federally registered trademarks of Holman Bible Publishers.
+    · Powered by <a href="https://www.biblegateway.com/" target="_blank" rel="noopener">BibleGateway.com</a>
+  </div>
+</div>
+<script>
+(function(){
+  var box=document.getElementById("v"), done=false;
+  function txt(s){ // decode entities safely, never inject HTML
+    return new DOMParser().parseFromString("<!doctype html><body>"+String(s||""),"text/html").body.textContent.trim();
+  }
+  function safeUrl(u){u=txt(u);return /^https:\/\/(www\.)?biblegateway\.com\//.test(u)?u:"https://www.biblegateway.com/";}
+  function fail(){
+    if(done)return; done=true;
+    box.innerHTML='<div class="msg">Today\'s verse couldn\'t load right now. <a href="https://www.biblegateway.com/reading-plans/verse-of-the-day/?version=CSB" target="_blank" rel="noopener">Read it on BibleGateway (CSB)</a>.</div>';
+  }
+  window.__votd=function(j){
+    if(done)return;
+    var v=j&&j.votd;
+    if(!v||!v.rawtext||!v.reference){fail();return;}
+    done=true;
+    box.innerHTML="";
+    var t=document.createElement("div");t.className="t";t.textContent="\u201C"+txt(v.rawtext)+"\u201D";
+    var r=document.createElement("div");r.className="r";
+    var a=document.createElement("a");a.href=safeUrl(v.permalink);a.target="_blank";a.rel="noopener";a.textContent=txt(v.display_ref||v.reference);
+    var s=document.createElement("span");s.textContent=" \u00B7 CSB";
+    r.appendChild(a);r.appendChild(s);box.appendChild(t);box.appendChild(r);
+    if(v.year&&v.month&&v.day){
+      var d=new Date(Date.UTC(+v.year,+v.month-1,+v.day,12));
+      document.getElementById("date").textContent=d.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",timeZone:"UTC"});
+    }
+  };
+  var sc=document.createElement("script");
+  sc.src="https://www.biblegateway.com/votd/get/?format=json&version=CSB&callback=__votd&_="+
+    new Date().toLocaleDateString("en-CA",{timeZone:"America/Chicago"}); // one cache key per Chicago day
+  sc.onerror=fail; document.head.appendChild(sc);
+  setTimeout(fail,10000);
+})();
+</script>
+</body>
+</html>
