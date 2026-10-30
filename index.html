@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mountain Home, AR — Weather</title>
+<style>
+  :root{--fg:#37352f;--muted:#787774;--line:#ebebea;--soft:#f7f7f5}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#fff;color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
+    -webkit-font-smoothing:antialiased}
+  .w{max-width:640px;margin:0 auto;padding:18px 22px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .now{display:flex;align-items:center;gap:14px}
+  .ico{font-size:44px;line-height:1}
+  .temp{font-size:44px;font-weight:600;letter-spacing:-1px;line-height:1}
+  .cond{font-size:15px;margin-top:4px}
+  .place{font-size:12px;color:var(--muted);margin-top:2px}
+  .stats{display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:13px}
+  .stats span:nth-child(odd){color:var(--muted)}
+  .days{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:16px;padding-top:12px;border-top:1px solid var(--line)}
+  .d{text-align:center;font-size:12px;padding:6px 2px;border-radius:6px}
+  .d .n{color:var(--muted)}
+  .d .e{font-size:20px;margin:3px 0}
+  .d .hl b{font-weight:600}
+  .d .hl i{font-style:normal;color:var(--muted)}
+  .d .p{color:#2f80c2;font-size:11px;min-height:13px}
+  .foot{margin-top:10px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .foot a{color:var(--muted)}
+  .msg{font-size:14px;color:var(--muted);padding:24px 0}
+  @media (max-width:420px){
+    .w{padding:14px}
+    .temp,.ico{font-size:36px}
+    .stats{width:100%;grid-template-columns:auto 1fr auto 1fr}
+    .days{gap:2px}
+    .d .e{font-size:17px}
+  }
+</style>
+</head>
+<body>
+<div class="w" id="app"><div class="msg">Loading weather for Mountain Home, AR…</div></div>
+<script>
+(function(){
+  var LAT=36.335, LON=-92.385, TZ="America/Chicago";
+  var url="https://api.open-meteo.com/v1/forecast?latitude="+LAT+"&longitude="+LON+
+    "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m,wind_direction_10m,is_day"+
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"+
+    "&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone="+encodeURIComponent(TZ)+"&forecast_days=6";
+  var W={0:["Clear","☀️","🌙"],1:["Mostly clear","🌤️","🌙"],2:["Partly cloudy","⛅","☁️"],3:["Overcast","☁️","☁️"],
+    45:["Fog","🌫️"],48:["Freezing fog","🌫️"],51:["Light drizzle","🌦️"],53:["Drizzle","🌦️"],55:["Heavy drizzle","🌧️"],
+    56:["Freezing drizzle","🌧️"],57:["Freezing drizzle","🌧️"],61:["Light rain","🌦️"],63:["Rain","🌧️"],65:["Heavy rain","🌧️"],
+    66:["Freezing rain","🌧️"],67:["Freezing rain","🌧️"],71:["Light snow","🌨️"],73:["Snow","🌨️"],75:["Heavy snow","❄️"],
+    77:["Snow grains","🌨️"],80:["Rain showers","🌦️"],81:["Rain showers","🌧️"],82:["Heavy showers","⛈️"],
+    85:["Snow showers","🌨️"],86:["Snow showers","❄️"],95:["Thunderstorm","⛈️"],96:["Thunderstorm, hail","⛈️"],99:["Thunderstorm, hail","⛈️"]};
+  function wx(c,day){var w=W[c]||["—","🌡️"];return {t:w[0],e:(day===0&&w[2])?w[2]:w[1]};}
+  function dir(d){return ["N","NE","E","SE","S","SW","W","NW"][Math.round(d/45)%8];}
+  function r(x){return Math.round(x);}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function dayName(iso,i){if(i===0)return "Today";var p=iso.split("-");
+    return new Date(Date.UTC(+p[0],+p[1]-1,+p[2],12)).toLocaleDateString("en-US",{weekday:"short",timeZone:"UTC"});}
+  function render(j){
+    var c=j.current,d=j.daily,w=wx(c.weather_code,c.is_day);
+    var strip="";
+    for(var i=1;i<=5&&i<d.time.length;i++){var x=wx(d.weather_code[i],1),p=d.precipitation_probability_max[i];
+      strip+='<div class="d" title="'+esc(x.t)+'"><div class="n">'+dayName(d.time[i],i)+'</div><div class="e">'+x.e+
+        '</div><div class="hl"><b>'+r(d.temperature_2m_max[i])+'°</b> <i>'+r(d.temperature_2m_min[i])+'°</i></div><div class="p">'+
+        (p!=null&&p>=10?"💧"+p+"%":"")+'</div></div>';}
+    var upd=new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",timeZone:TZ});
+    var rain=d.precipitation_probability_max[0];
+    document.getElementById("app").innerHTML=
+      '<div class="top"><div class="now"><div class="ico" aria-hidden="true">'+w.e+'</div><div><div class="temp">'+r(c.temperature_2m)+
+      '°F</div><div class="cond">'+esc(w.t)+' · feels '+r(c.apparent_temperature)+'°</div><div class="place">Mountain Home, AR</div></div></div>'+
+      '<div class="stats"><span>High / Low</span><span>'+r(d.temperature_2m_max[0])+'° / '+r(d.temperature_2m_min[0])+'°</span>'+
+      '<span>Rain</span><span>'+(rain==null?"—":rain+"%")+'</span>'+
+      '<span>Wind</span><span>'+r(c.wind_speed_10m)+' mph '+dir(c.wind_direction_10m)+(c.wind_gusts_10m>c.wind_speed_10m+5?' (gusts '+r(c.wind_gusts_10m)+')':'')+'</span></div></div>'+
+      '<div class="days">'+strip+'</div>'+
+      '<div class="foot"><span>Updated '+upd+' CT</span><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>';
+  }
+  function fail(){document.getElementById("app").innerHTML='<div class="msg">Weather is unavailable right now for Mountain Home, AR. It will try again shortly.</div>';}
+  function load(){
+    fetch(url,{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json();})
+      .then(function(j){if(!j||!j.current||!j.daily)throw 0;render(j);}).catch(fail);
+  }
+  load(); setInterval(load,15*60*1000);
+})();
+</script>
+</body>
+</html>
